@@ -1,53 +1,69 @@
-all: makemigrations migrate run
+include .env
 
+BIN_DIR ?= $(shell pwd)/tmp/bin
+SRC_DIR ?= ./src
+
+USER ?= nikita
+PYTHON = python3
+
+DOCKER_DIR = .
+DOCKER_FILE = $(DOCKER_DIR)/Dockerfile
+DOCKER_COMPOSE_FILE = $(DOCKER_DIR)/docker-compose.yml
+
+.PHONY: all
+all: migrate up
+
+.PHONY: run
 run:
-	python3 src/manage.py runserver
+	$(PYTHON) $(SRC_DIR)/manage.py runserver $(HOST):$(PORT)
 
+.PHONY: build
 build:
-	docker build -t sport-app:1 .
+	docker build -f $(DOCKER_FILE) -t $(IMAGE_NAME) .
 
+.PHONY: down
 down:
-	docker compose down --remove-orphans
+	docker compose -f $(DOCKER_COMPOSE_FILE) down --remove-orphans
 
-up:
-	docker compose up -d
+.PHONY: up
+up: down
+	docker compose -f $(DOCKER_COMPOSE_FILE) up -d
 
-test:
-	pytest
-
-migrate:
-	python src/manage.py migrate
-
-makemigrations:
-	python3 src/manage.py makemigrations
-	sudo chown -R ${USER} src/app/migrations/
-
-createsuperuser:
-	python src/manage.py createsuperuser
-
-collectstatic:
-	python src/manage.py collectstatic --no-input
-
-dev:
-	python src/manage.py runserver localhost:8000
-
-command:
-	python3 src/manage.py ${c}
-
-shell:
-	python3 src/manage.py shell
-
-debug:
-	python3 src/manage.py debug
-
-piplock:
-	pipenv install
-	sudo chown -R ${USER} Pipfile.lock
-
+.PHONY: lint
 lint:
 	isort .
 	flake8 --config setup.cfg
 
-check_lint:
-	isort --check --diff .
-	flake8 --config setup.cfg
+.PHONY: test
+test:
+	echo "test"
+
+.PHONY: migrate
+migrate:
+	$(PYTHON) $(SRC_DIR)/manage.py migrate
+
+.PHONY: makemigrations
+makemigrations:
+	$(PYTHON) $(SRC_DIR)/manage.py makemigrations
+	sudo chown -R ${USER} $(SRC_DIR)/app/migrations/
+
+.PHONY: createsuperuser
+createsuperuser:
+	$(PYTHON) $(SRC_DIR)/manage.py createsuperuser
+
+.PHONY: collectstatic
+collectstatic:
+	$(PYTHON) $(SRC_DIR)/manage.py collectstatic --no-input
+
+.PHONY: shell
+shell:
+	$(PYTHON) $(SRC_DIR)/manage.py shell
+
+.PHONY: piplock
+piplock:
+	pipenv install
+	sudo chown -R ${USER} Pipfile.lock
+
+.PHONY: clean
+clean:
+	git clean -Xfd .
